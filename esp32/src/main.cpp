@@ -179,76 +179,6 @@ void energyUpdate(Tomogochi &pet)
   }
 }
 
-const char *behaviorName(Behavior behavior)
-{
-  switch (behavior)
-  {
-  case Behavior::Idle:
-    return "Бездействует";
-  case Behavior::Resting:
-    return "Отдыхает";
-  case Behavior::Sleeping:
-    return "Спит";
-  case Behavior::Reacting:
-    return "Реагирует";
-  case Behavior::GoingToSleep:
-    return "Засыпает";
-  case Behavior::Rise:
-    return "Просыпается";
-  }
-  return "Неизвестно";
-}
-
-const char *activityName(Activity activity)
-{
-  switch (activity)
-  {
-  case Activity::None:
-    return "Нет";
-  case Activity::NewMessage:
-    return "Новое сообщение";
-  case Activity::ButtonPressed:
-    return "Нажата кнопка";
-  }
-  return "Неизвестно";
-}
-
-const char *animationName(Animation animation)
-{
-  switch (animation)
-  {
-  case Animation::Idle:
-    return "Бездействие";
-  case Animation::GoingToSleep:
-    return "Засыпание";
-  case Animation::Sleeping:
-    return "Сон";
-  case Animation::Rise:
-    return "Пробуждение";
-  case Animation::Reacting:
-    return "Реакция";
-  case Animation::Resting:
-    return "Отдых";
-  }
-  return "Неизвестно";
-}
-
-const char *dayPeriodName(DayPeriod period)
-{
-  switch (period)
-  {
-  case DayPeriod::Morning:
-    return "Утро";
-  case DayPeriod::Afternoon:
-    return "День";
-  case DayPeriod::Evening:
-    return "Вечер";
-  case DayPeriod::Night:
-    return "Ночь";
-  }
-  return "Неизвестно";
-}
-
 void displayControl(Tomogochi &pet, DayData &dayData)
 {
   unsigned long currentMillis = millis();
@@ -258,11 +188,11 @@ void displayControl(Tomogochi &pet, DayData &dayData)
     Serial.print("Name: ");
     Serial.println(pet.name);
     Serial.print("Behavior: ");
-    Serial.println(behaviorName(pet.behavior));
+    Serial.println(static_cast<int>(pet.behavior));
     Serial.print("Activity: ");
-    Serial.println(activityName(pet.activity));
+    Serial.println(static_cast<int>(pet.activity));
     Serial.print("Animation: ");
-    Serial.println(animationName(pet.animation));
+    Serial.println(static_cast<int>(pet.animation));
     Serial.print("Energy: ");
     Serial.println(pet.energy);
     Serial.print("Tired: ");
@@ -272,7 +202,7 @@ void displayControl(Tomogochi &pet, DayData &dayData)
     Serial.print("Last Interaction Time: ");
     Serial.println(pet.lastInteractionTime);
     Serial.print("Day Period: ");
-    Serial.println(dayPeriodName(dayData.period));
+    Serial.println(static_cast<int>(dayData.period));
     Serial.print("Hour: ");
     Serial.println(dayData.hour);
     Serial.print("Minute: ");
