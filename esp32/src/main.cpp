@@ -4,8 +4,13 @@
 const unsigned long ENERGY_TICK = 1000;               // интервал обновления состояния питомца (в миллисекундах)
 const unsigned long MinutesInMillis = 60000;          // количество миллисекунд в одной минуте
 const unsigned long HoursInMillis = 3600000;          // количество миллисекунд в одном часе
-const unsigned long DISPLAY_UPDATE_INTERVAL = 10000;  // интервал обновления дисплея (в миллисекундах)
-const unsigned long INTERACTION_RESTING_TIME = 10000; // Пробуждение при взаимодействии
+const unsigned long DISPLAY_UPDATE_INTERVAL = 1000;  // интервал обновления дисплея (в миллисекундах)
+const unsigned long INTERACTION_RESTING_TIME = 10000; // сколько Tommy остаётся в Resting после последнего взаимодействия или входа в состояние
+
+// пороги энергии
+const int ENERGY_LOW = 30;          // энергия <= 30: Tommy хочет отдохнуть; чтобы разбудить уставшего, нужно > 30
+const int ENERGY_EXHAUSTED = 10;    // энергия <= 10: Tommy валится с ног (tired = true) и засыпает
+const int RESTING_ENERGY_TICKS = 5; // в Resting энергия падает на 1 раз в 5 тиков (медленнее, чем в Idle)
 
 unsigned long LastEnergyUpdate = 0;  // время последнего обновления состояния питомца
 unsigned long LastMinuteUpdate = 0;  // время последнего обновления минут
@@ -16,7 +21,6 @@ const unsigned long FRAME_INTERVAL = 150; // миллисекунды между
 const int IDLE_ANIMATION_FRAMES = 6;
 const int SLEEP_ANIMATION_FRAMES = 6;
 const int REACTION_ANIMATION_FRAMES = 4;
-const int WAKEUP_ANIMATION_FRAMES = 5;
 const int RISE_ANIMATION_FRAMES = 6;
 const int RESTING_ANIMATION_FRAMES = 4;
 const int GOING_TO_SLEEP_ANIMATION_FRAMES = 6;
@@ -40,7 +44,6 @@ enum class Behavior{
   Idle,     // бездействует
   Resting,  // сонный
   Sleeping, // спит
-  WakingUp, // просыпается на какоето-время
   // переходные процессы
   Reacting,     // реагирует
   GoingToSleep, // готовится ко сну
@@ -52,7 +55,6 @@ enum class Animation{
   GoingToSleep, // засыпает
   Sleeping,     // спит
   Rise,
-  WakeUp,   // просыпается
   Reacting, // реагирует
   Resting
 };
@@ -68,8 +70,6 @@ struct Tomogochi{
   int energy;
 
   bool tired;
-  bool canSleep;
-  bool canRest;
 
   int interactions;
 
@@ -78,6 +78,9 @@ struct Tomogochi{
 
   int animationFrame;
   unsigned long lastFrameUpdate;
+
+  bool animationFinished;           // true, когда текущая анимация доиграла цикл до конца
+  unsigned long behaviorStartTime;  // когда начался текущий Behavior
 };
 
 struct DayData{
@@ -97,13 +100,13 @@ Tomogochi pet{
     Animation::Idle, // анимация
     100,             // энергия
     false,
-    false,
-    false,
     0, // количество взаимодействий
     0, // время последнего взаимодействия
     0, // время начала анимации
     0,
-    0};
+    0,
+    false, // анимация доиграла
+    0};    // время начала поведения
 
 void energyControl(Tomogochi &pet){
   if (pet.energy > 100){
@@ -142,18 +145,108 @@ void dayPeriodControl(DayData &dayData)
 
 void energyUpdate(Tomogochi &pet)
 {
+  static int restingTicks = 0; // считает тики в Resting; static: значение живёт между вызовами функции
+
   unsigned long currentMillis = millis();
   if (currentMillis - LastEnergyUpdate >= ENERGY_TICK){
     LastEnergyUpdate = currentMillis;
-    if (pet.behavior == Behavior::Idle){
+
+    switch (pet.behavior){
+    case Behavior::Idle:
       pet.energy -= 1;
-    }else if (pet.behavior == Behavior::Sleeping){
+      break;
+
+    case Behavior::Resting:
+      restingTicks++;
+      if (restingTicks >= RESTING_ENERGY_TICKS){
+        restingTicks = 0;
+        pet.energy -= 1;
+      }
+      break;
+
+    case Behavior::Sleeping:
       pet.energy += 1;
-    }else if (pet.behavior == Behavior::Reacting){
+      break;
+
+    case Behavior::Reacting:
       pet.energy -= 2;
+      break;
+
+    default:
+      break;
     }
     energyControl(pet);
   }
+}
+
+const char *behaviorName(Behavior behavior)
+{
+  switch (behavior)
+  {
+  case Behavior::Idle:
+    return "Бездействует";
+  case Behavior::Resting:
+    return "Отдыхает";
+  case Behavior::Sleeping:
+    return "Спит";
+  case Behavior::Reacting:
+    return "Реагирует";
+  case Behavior::GoingToSleep:
+    return "Засыпает";
+  case Behavior::Rise:
+    return "Просыпается";
+  }
+  return "Неизвестно";
+}
+
+const char *activityName(Activity activity)
+{
+  switch (activity)
+  {
+  case Activity::None:
+    return "Нет";
+  case Activity::NewMessage:
+    return "Новое сообщение";
+  case Activity::ButtonPressed:
+    return "Нажата кнопка";
+  }
+  return "Неизвестно";
+}
+
+const char *animationName(Animation animation)
+{
+  switch (animation)
+  {
+  case Animation::Idle:
+    return "Бездействие";
+  case Animation::GoingToSleep:
+    return "Засыпание";
+  case Animation::Sleeping:
+    return "Сон";
+  case Animation::Rise:
+    return "Пробуждение";
+  case Animation::Reacting:
+    return "Реакция";
+  case Animation::Resting:
+    return "Отдых";
+  }
+  return "Неизвестно";
+}
+
+const char *dayPeriodName(DayPeriod period)
+{
+  switch (period)
+  {
+  case DayPeriod::Morning:
+    return "Утро";
+  case DayPeriod::Afternoon:
+    return "День";
+  case DayPeriod::Evening:
+    return "Вечер";
+  case DayPeriod::Night:
+    return "Ночь";
+  }
+  return "Неизвестно";
 }
 
 void displayControl(Tomogochi &pet, DayData &dayData)
@@ -165,19 +258,21 @@ void displayControl(Tomogochi &pet, DayData &dayData)
     Serial.print("Name: ");
     Serial.println(pet.name);
     Serial.print("Behavior: ");
-    Serial.println(static_cast<int>(pet.behavior));
+    Serial.println(behaviorName(pet.behavior));
     Serial.print("Activity: ");
-    Serial.println(static_cast<int>(pet.activity));
+    Serial.println(activityName(pet.activity));
     Serial.print("Animation: ");
-    Serial.println(static_cast<int>(pet.animation));
+    Serial.println(animationName(pet.animation));
     Serial.print("Energy: ");
     Serial.println(pet.energy);
+    Serial.print("Tired: ");
+    Serial.println(pet.tired);
     Serial.print("Interactions: ");
     Serial.println(pet.interactions);
     Serial.print("Last Interaction Time: ");
     Serial.println(pet.lastInteractionTime);
     Serial.print("Day Period: ");
-    Serial.println(static_cast<int>(dayData.period));
+    Serial.println(dayPeriodName(dayData.period));
     Serial.print("Hour: ");
     Serial.println(dayData.hour);
     Serial.print("Minute: ");
@@ -185,10 +280,29 @@ void displayControl(Tomogochi &pet, DayData &dayData)
   }
 }
 
+// Временный ввод для тестов через Serial Monitor: 'b' = кнопка, 'm' = сообщение.
+// Потом заменится на настоящую кнопку.
+void registerActivity(Tomogochi &pet, Activity newActivity){
+  pet.activity = newActivity;
+  pet.interactions++;
+  pet.lastInteractionTime = millis();
+}
+
+void inputControl(Tomogochi &pet){
+  while (Serial.available() > 0){
+    char command = Serial.read();
+    if (command == 'b'){
+      registerActivity(pet, Activity::ButtonPressed);
+    }else if (command == 'm'){
+      registerActivity(pet, Activity::NewMessage);
+    }
+  }
+}
+
 void animationControl(Tomogochi &pet, DayData &dayData){
   unsigned long currentMillis = millis();
 
-  Animation requiredAnimation;
+  Animation requiredAnimation = pet.animation; // безопасное значение по умолчанию: ничего не меняется
 
   switch (pet.behavior){
   case Behavior::Idle:
@@ -215,9 +329,7 @@ void animationControl(Tomogochi &pet, DayData &dayData){
     requiredAnimation = Animation::Sleeping;
     break;
 
-  case Behavior::WakingUp:
-    requiredAnimation = Animation::WakeUp;
-    break;
+
   default:
     break;
   }
@@ -229,6 +341,7 @@ void animationControl(Tomogochi &pet, DayData &dayData){
     pet.animationFrame = 0;
     pet.animationStartTime = currentMillis;
     pet.lastFrameUpdate = currentMillis;
+    pet.animationFinished = false; // новая анимация ещё не доиграла
   }
 
   // Определяем количество кадров текущей анимации.
@@ -242,10 +355,6 @@ void animationControl(Tomogochi &pet, DayData &dayData){
 
   case Animation::Sleeping:
     totalFrames = SLEEP_ANIMATION_FRAMES;
-    break;
-
-  case Animation::WakeUp:
-    totalFrames = WAKEUP_ANIMATION_FRAMES;
     break;
 
   case Animation::Reacting:
@@ -276,63 +385,120 @@ void animationControl(Tomogochi &pet, DayData &dayData){
     if (pet.animationFrame >= totalFrames)
     {
       pet.animationFrame = 0;
+      pet.animationFinished = true; // цикл доигран до конца
     }
   }
 }
 
+// Какое состояние подходит Tommy прямо сейчас. Условия проверяются сверху вниз, побеждает первое.
+Behavior chooseBehavior(const Tomogochi &pet, const DayData &dayData){
+  if (dayData.period == DayPeriod::Night){
+    return Behavior::GoingToSleep;
+  }
+  if (pet.energy <= ENERGY_EXHAUSTED){
+    return Behavior::GoingToSleep;
+  }
+  if (dayData.period == DayPeriod::Evening){
+    return Behavior::Resting;
+  }
+  if (pet.energy <= ENERGY_LOW){
+    return Behavior::Resting;
+  }
+  return Behavior::Idle;
+}
+
+// Единственное место, где меняется Behavior: запоминает время входа и ставит tired.
+void setBehavior(Tomogochi &pet, Behavior next){
+  pet.behavior = next;
+  pet.behaviorStartTime = millis();
+
+  if (next == Behavior::GoingToSleep && pet.energy <= ENERGY_EXHAUSTED){
+    pet.tired = true;
+  }
+}
+
 void behaviorControl(Tomogochi &pet, DayData &dayData){
-  unsigned long CurrentMillis = millis();
+  unsigned long currentMillis = millis();
+
+  // tired сбрасывается, когда энергия полностью восстановилась.
+  if (pet.tired && pet.energy >= 100){
+    pet.tired = false;
+  }
 
   switch (pet.behavior){
   case Behavior::Idle:
-    if (dayData.period == DayPeriod::Afternoon || dayData.period == DayPeriod::Morning || pet.energy <= 30){
-      pet.behavior = Behavior::Resting;
-    }
-
     if (pet.activity != Activity::None){
-      pet.behavior = Behavior::Reacting;
+      setBehavior(pet, Behavior::Reacting);
+    }else{
+      Behavior next = chooseBehavior(pet, dayData);
+      if (next != Behavior::Idle){
+        setBehavior(pet, next);
+      }
     }
     break;
 
   case Behavior::Resting:
-    if (pet.lastInteractionTime >= INTERACTION_RESTING_TIME){
-      if (pet.energy > 30 & dayData.period == DayPeriod::Morning){
-        pet.behavior = Behavior::Idle;
-      }
-      if (pet.energy <= 10){
-        pet.behavior = Behavior::GoingToSleep;
-        pet.tired = true;
-      }
-      if(dayData.period == DayPeriod::Night){
-        pet.behavior = Behavior::GoingToSleep;
+    if (pet.activity != Activity::None){
+      setBehavior(pet, Behavior::Reacting);
+    }else if (currentMillis - pet.lastInteractionTime >= INTERACTION_RESTING_TIME &&
+              currentMillis - pet.behaviorStartTime >= INTERACTION_RESTING_TIME){
+      Behavior next = chooseBehavior(pet, dayData);
+      if (next != Behavior::Resting){
+        setBehavior(pet, next);
       }
     }
     break;
 
-  case Behavior::Sleeping:
-    if(pet.tired == true & pet.activity == Activity::None){
-      break;
-    }else if(pet.tired != true & pet.activity != Activity::None){
-      pet.behavior = Behavior::Rise;
-    }else if(dayData.period != DayPeriod::Night & pet.tired != true){
-      pet.behavior = Behavior::Rise;
+  case Behavior::GoingToSleep:
+    if (pet.animationFinished){
+      setBehavior(pet, Behavior::Sleeping);
     }
+    break;
 
-    default:
-      break;
+  case Behavior::Sleeping:
+    if (pet.activity != Activity::None){
+      if (!pet.tired){
+        setBehavior(pet, Behavior::Rise);
+      }else if (pet.energy > ENERGY_LOW){
+        pet.tired = false;
+        setBehavior(pet, Behavior::Rise);
+      }else{
+        pet.activity = Activity::None; // слишком устал: взаимодействие игнорируется
+      }
+    }else if (!pet.tired && dayData.period != DayPeriod::Night){
+      setBehavior(pet, Behavior::Rise);
+    }
+    break;
+
+  case Behavior::Reacting:
+    if (pet.animationFinished){
+      pet.activity = Activity::None;
+      setBehavior(pet, chooseBehavior(pet, dayData));
+    }
+    break;
+
+  case Behavior::Rise:
+    if (pet.animationFinished){
+      pet.activity = Activity::None;
+      setBehavior(pet, Behavior::Resting);
+    }
+    break;
+
+  default:
+    break;
   }
 }
 
 void setup(){
   LastEnergyUpdate = millis();        // инициализация времени последнего обновления состояния питомца
   pet.lastInteractionTime = millis(); // инициализация времени последнего взаимодействия с питомцем
+  pet.behaviorStartTime = millis();   // инициализация времени начала текущего поведения
 
   Serial.begin(115200); // инициализация последовательного порта для отладки
 }
 
-void loop()
-{
-
+void loop(){
+  inputControl(pet);
   energyUpdate(pet);
   dayPeriodControl(dayData);
   behaviorControl(pet, dayData);
