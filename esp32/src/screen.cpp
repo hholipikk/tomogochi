@@ -2,6 +2,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "screen.h"
+#include "sprites.h"
 
 const int SCREEN_WIDTH = 128;
 const int SCREEN_HEIGHT = 64;
@@ -39,51 +40,63 @@ static const char* animationName(Animation a){
     return "?";
 }
 
-void screenControl(const Tomogochi &pet, const DayData &dayData, const WeatherData &weather){
-  if (!screenReady) return;
+void screenControl(const Tomogochi &pet, const DayData &dayData, const WeatherData &weather) {
+    if (!screenReady) return;
 
-  // Перерисовываем только если что-то изменилось.
-static Animation lastAnimation;
-static int lastFrame = -1;
-static int lastMinute = -1;
-static int lastTemp = -1000;
-static WeatherType lastType = WeatherType::Unknown;
-static bool lastValid = false;
+    static Animation lastAnimation;
+    static int lastFrame = -1;
+    static int lastMinute = -1;
+    static int lastTemp = -1000;
+    static WeatherType lastType = WeatherType::Unknown;
+    static bool lastValid = false;
 
-bool changed = pet.animation != lastAnimation || pet.animationFrame != lastFrame
-            || dayData.minute != lastMinute || weather.temperature != lastTemp
-            || weather.type != lastType || weather.valid != lastValid;
-if (!changed) return;
+    bool changed = pet.animation != lastAnimation ||
+                   pet.animationFrame != lastFrame ||
+                   dayData.minute != lastMinute ||
+                   weather.temperature != lastTemp ||
+                   weather.type != lastType ||
+                   weather.valid != lastValid;
 
-lastAnimation = pet.animation;
-lastFrame = pet.animationFrame;
-lastMinute = dayData.minute;
-lastTemp = weather.temperature;
-lastType = weather.type;
-lastValid = weather.valid;
+    if (!changed) return;
 
-  oled.clearDisplay();
-  oled.setTextSize(1);
-  oled.setTextColor(SSD1306_WHITE);
-  oled.setCursor(0, 0);
-  oled.print(animationName(pet.animation));
-  oled.print(" ");
-  oled.print(pet.animationFrame);
-  oled.setCursor(0, 25);
-  oled.print("Energy:  ");
-  oled.print(pet.energy);
-  char timeText[6];                                   // "06:05" и завершающий ноль
-  snprintf(timeText, sizeof(timeText), "%02d:%02d", dayData.hour, dayData.minute);
-  oled.setTextSize(1);
-  oled.setCursor(80, 8);
-  oled.print(timeText);
-  oled.setTextSize(1);
-  oled.setCursor(80, 40);
-  if (weather.valid){
-    oled.print(weather.temperature);
-    oled.print(" C");
-  } else {
-    oled.print("-- C");                  // данных ещё нет
-  }
-  oled.display();                    // отправляет весь буфер на экран
+    lastAnimation = pet.animation;
+    lastFrame = pet.animationFrame;
+    lastMinute = dayData.minute;
+    lastTemp = weather.temperature;
+    lastType = weather.type;
+    lastValid = weather.valid;
+
+    oled.clearDisplay();
+
+    // Кадр ЮКИ
+    oled.setTextSize(1);
+    oled.setTextColor(SSD1306_WHITE);
+    oled.setCursor(0, 0);
+
+    const char* sprite = getSpriteFrame(pet.animation, pet.animationFrame);
+    oled.print(sprite);
+
+    // Энергия
+    oled.setCursor(0, 52);
+    oled.print("Energy: ");
+    oled.print(pet.energy);
+
+    // Время
+    char timeText[6];
+    snprintf(timeText, sizeof(timeText), "%02d:%02d", dayData.hour, dayData.minute);
+
+    oled.setCursor(80, 8);
+    oled.print(timeText);
+
+    // Температура
+    oled.setCursor(80, 40);
+
+    if (weather.valid) {
+        oled.print(weather.temperature);
+        oled.print(" C");
+    } else {
+        oled.print("-- C");
+    }
+
+    oled.display();
 }

@@ -4,11 +4,11 @@
 // Анимации
 const unsigned long FRAME_INTERVAL = 500; // миллисекунды между кадрами
 const int IDLE_ANIMATION_FRAMES = 6;
-const int SLEEP_ANIMATION_FRAMES = 6;
-const int REACTION_ANIMATION_FRAMES = 4;
-const int RISE_ANIMATION_FRAMES = 6;
+const int SLEEP_ANIMATION_FRAMES = 4;
+const int REACTION_ANIMATION_FRAMES = 6;
+const int RISE_ANIMATION_FRAMES = 8;
 const int RESTING_ANIMATION_FRAMES = 4;
-const int GOING_TO_SLEEP_ANIMATION_FRAMES = 6;
+const int GOING_TO_SLEEP_ANIMATION_FRAMES = 8;
 
 //Для обновления интернет данных
 const unsigned long INTERNET_DATA_UPDATE = 10800000; //3 часа
