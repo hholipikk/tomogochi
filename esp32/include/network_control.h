@@ -6,3 +6,5 @@
 void networkInit();
 
 void networkControl(DayData &dayData, WeatherData &weather);
+
+NetState networkGetState();

@@ -6,7 +6,6 @@
 // настройки времени
 const unsigned long ENERGY_TICK = 1000;               // интервал обновления состояния питомца (в миллисекундах)
 const unsigned long MinutesInMillis = 60000;          // количество миллисекунд в одной минуте
-const unsigned long HoursInMillis = 3600000;          // количество миллисекунд в одном часе
 const unsigned long DISPLAY_UPDATE_INTERVAL = 10000;  // интервал обновления дисплея (в миллисекундах)
 const unsigned long INTERACTION_RESTING_TIME = 10000; // сколько Tommy остаётся в Resting после последнего взаимодействия или входа в состояние
 
@@ -19,7 +18,7 @@ unsigned long LastEnergyUpdate = 0;  // время последнего обно
 unsigned long LastMinuteUpdate = 0;  // время последнего обновления минут
 unsigned long LastDisplayUpdate = 0; // время последнего обновления дисплея
 
-DayData dayData = {DayPeriod::Morning, 6, 0}; // инициализация структуры DayData с начальными значениями
+DayData dayData = {DayPeriod::Morning, 6, 0, 1, 1, DayOfWeek::Monday}; // инициализация структуры DayData с начальными значениями
 
 WeatherData weather{ false, 20, 0, WeatherType::Clear};
 
@@ -32,11 +31,11 @@ Tomogochi pet{
     false,
     0, // количество взаимодействий
     0, // время последнего взаимодействия
-    0, // время начала анимации
     0,
     0,
     false, // анимация доиграла
-    0};    // время начала поведения
+    0
+  };    // время начала поведения
 
 void energyControl(Tomogochi &pet){
   if (pet.energy > 100){
@@ -49,6 +48,7 @@ void energyControl(Tomogochi &pet){
 }
 
 void dayPeriodControl(DayData &dayData){
+
   unsigned long currentMillis = millis();
 
   if (currentMillis - LastMinuteUpdate >= MinutesInMillis){
@@ -198,7 +198,6 @@ void animationControl(Tomogochi &pet, DayData &dayData){
   {
     pet.animation = requiredAnimation;
     pet.animationFrame = 0;
-    pet.animationStartTime = currentMillis;
     pet.lastFrameUpdate = currentMillis;
     pet.animationFinished = false; // новая анимация ещё не доиграла
   }
@@ -367,6 +366,6 @@ void loop(){
   behaviorControl(pet, dayData);
   animationControl(pet, dayData);
   debugControl(pet, dayData);
-  screenControl(pet, dayData, weather);
+  screenControl(pet, dayData, weather, networkGetState());
 
 }
