@@ -3,6 +3,7 @@
 #include <Adafruit_SSD1306.h>
 #include "screen.h"
 #include "sprites.h"
+#include "types.h"
 
 const int SCREEN_WIDTH = 128;
 const int SCREEN_HEIGHT = 64;
@@ -27,20 +28,7 @@ void screenInit(){
   oled.display();
 }
 
-static const char* animationName(Animation a){
-    switch (a)
-    {
-    case Animation::Idle:         return "Idle";
-    case Animation::Resting:      return "Resting";
-    case Animation::Sleeping:     return "Sleeping";
-    case Animation::GoingToSleep: return "GoingToSleep";
-    case Animation::Rise:         return "Rise";
-    case Animation::Reacting:     return "Reacting";
-    }
-    return "?";
-}
-
-void screenControl(const Tomogochi &pet, const DayData &dayData, const WeatherData &weather) {
+void screenControl(const Tomogochi &pet, const DayData &dayData, const WeatherData &weather, NetState networkState) {
     if (!screenReady) return;
 
     static Animation lastAnimation;
@@ -49,13 +37,15 @@ void screenControl(const Tomogochi &pet, const DayData &dayData, const WeatherDa
     static int lastTemp = -1000;
     static WeatherType lastType = WeatherType::Unknown;
     static bool lastValid = false;
+    static NetState lastNetworkState;
 
     bool changed = pet.animation != lastAnimation ||
                    pet.animationFrame != lastFrame ||
                    dayData.minute != lastMinute ||
                    weather.temperature != lastTemp ||
                    weather.type != lastType ||
-                   weather.valid != lastValid;
+                   weather.valid != lastValid
+                   || lastNetworkState != networkState;
 
     if (!changed) return;
 
@@ -65,6 +55,7 @@ void screenControl(const Tomogochi &pet, const DayData &dayData, const WeatherDa
     lastTemp = weather.temperature;
     lastType = weather.type;
     lastValid = weather.valid;
+    lastNetworkState = networkState;
 
     oled.clearDisplay();
 
@@ -77,25 +68,40 @@ void screenControl(const Tomogochi &pet, const DayData &dayData, const WeatherDa
     oled.print(sprite);
 
     // Энергия
-    oled.setCursor(0, 52);
-    oled.print("Energy: ");
-    oled.print(pet.energy);
+    oled.drawRect(10, 54, 102, 6, SSD1306_WHITE);
+    oled.fillRect(11, 55, pet.energy, 4, SSD1306_WHITE);
 
     // Время
     char timeText[6];
     snprintf(timeText, sizeof(timeText), "%02d:%02d", dayData.hour, dayData.minute);
 
-    oled.setCursor(80, 8);
+    oled.setCursor(70, 4);
     oled.print(timeText);
 
     // Температура
-    oled.setCursor(80, 40);
+    oled.setCursor(80, 30);
 
     if (weather.valid) {
         oled.print(weather.temperature);
         oled.print(" C");
     } else {
         oled.print("-- C");
+    }
+
+    //WIFI
+   if (networkState == NetState::Connected) {
+    oled.drawLine(113, 6, 119, 1, SSD1306_WHITE);
+    oled.drawLine(119, 1, 125, 6, SSD1306_WHITE);
+    oled.drawLine(116, 7, 119, 4, SSD1306_WHITE);
+    oled.drawLine(119, 4, 122, 7, SSD1306_WHITE);
+    oled.fillCircle(119, 10, 1, SSD1306_WHITE);
+    } else {
+    oled.drawLine(113, 6, 119, 1, SSD1306_WHITE);
+    oled.drawLine(119, 1, 125, 6, SSD1306_WHITE);
+    oled.drawLine(116, 7, 119, 4, SSD1306_WHITE);
+    oled.drawLine(119, 4, 122, 7, SSD1306_WHITE);
+    oled.fillCircle(119, 10, 1, SSD1306_WHITE);
+    oled.drawLine(113, 1, 125, 9, SSD1306_WHITE);
     }
 
     oled.display();

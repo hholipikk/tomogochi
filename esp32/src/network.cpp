@@ -1,17 +1,22 @@
 #include "network_control.h"
 #include "secrets.h"
 #include <WiFi.h>
+#include "types.h"
 
-enum class NetState { Idle, Connecting, Connected };
+
 static NetState state = NetState::Idle;
 static unsigned long stateStart = 0;
 unsigned long DATAUPDT = 0;
 static bool firstTry = true;
-bool timeSynhc = false;
+static bool timeSynhc = false;
 static bool ntpStarted = false;
 
 const unsigned long CONNECT_TIMEOUT = 15000;   // сколько ждать подключения
 const unsigned long RETRY_DELAY = 60000;       // пауза между попытками
+
+NetState networkGetState(){
+  return state;
+}
 
 void networkInit(){
   WiFi.mode(WIFI_STA);
@@ -62,6 +67,11 @@ if(!timeSynhc || now - DATAUPDT >= INTERNET_DATA_UPDATE){
     if(getLocalTime(&t, 0)){
         dayData.hour = t.tm_hour;
         dayData.minute = t.tm_min;
+        dayData.day = t.tm_mday;
+        dayData.month = t.tm_mon + 1; // tm_mon начинается с 0
+        dayData.DW = static_cast<DayOfWeek>(
+        (t.tm_wday + 6) % 7 // перевод: воскресенье 0 -> 6, понедельник 1 -> 0
+        );
         if(!timeSynhc){
             timeSynhc = true;
         }

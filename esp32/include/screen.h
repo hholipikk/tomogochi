@@ -3,4 +3,4 @@
 
 void screenInit();
 
-void screenControl(const Tomogochi &pet, const DayData &dayData, const WeatherData &weather);
+void screenControl(const Tomogochi &pet, const DayData &dayData, const WeatherData &weather, const NetState networkState);

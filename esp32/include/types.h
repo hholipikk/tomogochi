@@ -13,12 +13,24 @@ const int GOING_TO_SLEEP_ANIMATION_FRAMES = 8;
 //Для обновления интернет данных
 const unsigned long INTERNET_DATA_UPDATE = 10800000; //3 часа
 
+enum class NetState { Idle, Connecting, Connected };
+
 enum class DayPeriod{
 
   Morning,   // утро
   Afternoon, // день
   Evening,   // вечер
   Night      // ночь
+};
+
+enum class DayOfWeek{
+  Monday,
+  Tuesday,
+  Wednesday,
+  Thursday,
+  Friday,
+  Saturday,
+  Sunday
 };
 
 enum class Activity{
@@ -65,7 +77,7 @@ struct Tomogochi{
   int interactions;
 
   unsigned long lastInteractionTime;
-  unsigned long animationStartTime;
+
 
   int animationFrame;
   unsigned long lastFrameUpdate;
@@ -79,6 +91,9 @@ struct DayData{
   DayPeriod period;
   int hour;
   int minute;
+  int day;
+  int month;
+  DayOfWeek DW;
 };
 
 
